@@ -27,12 +27,18 @@ GENERATE_DH_PARAMS = False
 
 class TlsConfig(Config):
     def read_config(self, config):
-        self.tls_certificate = self.read_tls_certificate(
-            config.get("tls_certificate_path")
-        )
-        self.tls_certificate_file = config.get("tls_certificate_path")
-
+        self.no_tls_fingerprints = config.get("no_tls_fingerprints", False)
         self.no_tls = config.get("no_tls", False)
+
+        if (not self.no_tls) or (not self.no_tls_fingerprints):
+            self.tls_certificate = self.read_tls_certificate(
+                config.get("tls_certificate_path")
+            )
+            self.tls_certificate_file = config.get("tls_certificate_path")
+            self.tls_dh_params_path = self.check_file(
+                config.get("tls_dh_params_path"), "tls_dh_params"
+            )
+
 
         if self.no_tls:
             self.tls_private_key = None
@@ -41,22 +47,19 @@ class TlsConfig(Config):
                 config.get("tls_private_key_path")
             )
 
-        self.tls_dh_params_path = self.check_file(
-            config.get("tls_dh_params_path"), "tls_dh_params"
-        )
+        if not self.no_tls_fingerprints:
+            self.tls_fingerprints = config["tls_fingerprints"]
 
-        self.tls_fingerprints = config["tls_fingerprints"]
-
-        # Check that our own certificate is included in the list of fingerprints
-        # and include it if it is not.
-        x509_certificate_bytes = crypto.dump_certificate(
-            crypto.FILETYPE_ASN1,
-            self.tls_certificate
-        )
-        sha256_fingerprint = encode_base64(sha256(x509_certificate_bytes).digest())
-        sha256_fingerprints = set(f["sha256"] for f in self.tls_fingerprints)
-        if sha256_fingerprint not in sha256_fingerprints:
-            self.tls_fingerprints.append({u"sha256": sha256_fingerprint})
+            # Check that our own certificate is included in the list of fingerprints
+            # and include it if it is not.
+            x509_certificate_bytes = crypto.dump_certificate(
+                crypto.FILETYPE_ASN1,
+                self.tls_certificate
+            )
+            sha256_fingerprint = encode_base64(sha256(x509_certificate_bytes).digest())
+            sha256_fingerprints = set(f["sha256"] for f in self.tls_fingerprints)
+            if sha256_fingerprint not in sha256_fingerprints:
+                self.tls_fingerprints.append({u"sha256": sha256_fingerprint})
 
         # This config option applies to non-federation HTTP clients
         # (e.g. for talking to recaptcha, identity servers, and such)
@@ -89,6 +92,9 @@ class TlsConfig(Config):
 
         # Don't bind to the https port
         no_tls: False
+
+        # Don't store tls certificate fingerprints for this or other servers.
+        no_tls_fingerprints: False
 
         # List of allowed TLS fingerprints for this server to publish along
         # with the signing keys for this server. Other matrix servers that

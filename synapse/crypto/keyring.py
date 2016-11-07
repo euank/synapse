@@ -499,8 +499,10 @@ class Keyring(object):
                     or server_name not in response[u"signatures"]):
                 raise KeyLookupError("Key response not signed by remote server")
 
-            if "tls_fingerprints" not in response:
-                raise KeyLookupError("Key response missing TLS fingerprints")
+            tls_fingerprints = []
+            if not self.config.no_tls_fingerprints:
+                if "tls_fingerprints" not in response:
+                    raise KeyLookupError("Key response missing TLS fingerprints")
 
             certificate_bytes = crypto.dump_certificate(
                 crypto.FILETYPE_ASN1, tls_certificate

@@ -92,7 +92,9 @@ class LocalKey(Resource):
                 u"expired_ts": key.expired,
             }
 
-        tls_fingerprints = self.config.tls_fingerprints
+        tls_fingerprints = None
+        if not self.config.no_tls_fingerprints:
+            tls_fingerprints = self.config.tls_fingerprints
 
         json_object = {
             u"valid_until_ts": self.valid_until_ts,
